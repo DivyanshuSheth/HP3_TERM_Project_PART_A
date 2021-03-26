@@ -52,17 +52,17 @@ int main()
             }
         }
     }
-    int totalElements = n * dim * dim;
+    int size = n * dim * dim;
     
     float *d_A = NULL;
-    float * read_data = copyDataToDevice(d_A, h_A, totalElements);
-    int N = dim;
-    
+    float * read_data = copyDataToDevice(d_A, h_A, size);
+    int N = dim, i, j;
+    float M[n*dim*dim] = h_A;
     printf("Testing for matrix M [%dx%d]\n",N,N);
     dim3 grid(1,1,1);
     dim3 block(TILE_SIZE,TILE_SIZE,1);
     right_looking_launch_kernel<<<grid,block>>>(read_data,N);
-    err = cudaMemcpy(M,read_data,size,cudaMemcpyDeviceToHost);
+    cudaError_t err = cudaMemcpy(M,read_data,size,cudaMemcpyDeviceToHost);
     if(err != cudaSuccess)
     {
         fprintf(stderr, "Failed to copy the output matrix M from device to Host (error code %s)\n", cudaGetErrorString(err));
