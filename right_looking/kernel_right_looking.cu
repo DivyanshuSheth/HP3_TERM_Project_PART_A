@@ -1,47 +1,63 @@
 #include "right_looking.cu"
+
+float * copyDataToDevice (float *d_data, float *h_data, int totalElements) {
+
+    cudaError_t err = cudaSuccess;
+    err = cudaMalloc((void **)&d_data, totalElements);
+
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Failed to allocate device vector d_data (error code %s)!\n",
+             cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Copying data from host memory to the CUDA device\n");
+    err = cudaMemcpy(d_data, h_data, totalElements, cudaMemcpyHostToDevice);
+
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Failed to copy h_data from host to device (error code %s)\n", 
+             cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+    
+    printf("Copied data successfully!\n");
+    
+    return d_data;
+}
+
 int main()
 {
-    int n,N;
-    printf("Enter dimension (N) : ");
-    scanf("%d",&n);
-    if((n%TILE_SIZE)==0)
-        N = n;
-    else
-        N = ((int) (n/TILE_SIZE)) + 1;
-    size_t size = N*N*sizeof(float);
-    float *M = (float *)malloc(size);
-    if(M == NULL)
+    FILE *fptr;
+    fptr = fopen("input.txt", "r");
+    int n, dim;
+    // char str[50];
+    int temp;
+    fscanf(fptr, "%d", &n);
+    fscanf(fptr, "%d", &dim);
+    float h_A[n*dim*dim];
+    int count = 0;
+    int x = 0;
+    int gidx = 0;
+
+    for (int i = 0; i < n; i++)
     {
-        fprintf(stderr,"Failed to allocate host vectors!\n");
-        exit(EXIT_FAILURE);
-    }
-    int i,j;
-    printf("Enter input matrix: \n");
-    for(i=0;i<N;i++)
-    {
-        for(j=0;j<N;j++)
+        for (int j = 0; j < dim; j++)
         {
-            if(i>=n || j>=n)
-                M[i*N + j] = 1;     //Padding the matrix with 1
-            else
-                scanf("%f",&M[i*N + j]);
+            for (int k = 0; k < dim; k++)
+            {
+                fscanf(fptr, "%d", &temp);
+                x = j * dim + k;
+                gidx = x * n + i;
+                h_A[gidx] = temp;
+            }
         }
     }
-    cudaError_t err = cudaSuccess;
-    float *read_data = NULL;
-    err = cudaMalloc((void **)&read_data,N*N*sizeof(float));
-    if(err != cudaSuccess)
-    {
-        fprintf(stderr,"Failed to allocate matrix on the CUDA device! (error code %s)\n",cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    printf("Coping the matrix from host memory to device memory\n");
-    err = cudaMemcpy(read_data,M,size,cudaMemcpyHostToDevice);
-    if(err != cudaSuccess)
-    {
-        fprintf(stderr,"Failed to copy matrix from host to device (error code %s)\n",cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
+    int totalElements = n * dim * dim;
+    
+    float *d_A = NULL;
+    float * read_data = copyDataToDevice(d_A, h_A, totalElements);
+    int N = dim;
+    
     printf("Testing for matrix M [%dx%d]\n",N,N);
     dim3 grid(1,1,1);
     dim3 block(TILE_SIZE,TILE_SIZE,1);
